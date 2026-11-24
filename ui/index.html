@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZBrush 插件管理器</title>
+<style>
+:root{
+  --bg:#0f1115; --bg2:#14171d; --panel:#181b22; --panel2:#1e222a; --hover:#232832; --line:#2a2f3a; --line2:#343a47;
+  --text:#e7e9ee; --text2:#a3a9b6; --text3:#6f7685;
+  --accent:#ff8a3d; --accent2:#ffb07a; --accent-bg:rgba(255,138,61,.12);
+  --green:#3ecf8e; --green-bg:rgba(62,207,142,.12); --red:#f26d6d; --red-bg:rgba(242,109,109,.12);
+  --blue:#6aa8ff; --blue-bg:rgba(106,168,255,.12); --yellow:#f5c451; --yellow-bg:rgba(245,196,81,.13);
+  --purple:#b48cff; --purple-bg:rgba(180,140,255,.13);
+  --shadow:0 12px 40px rgba(0,0,0,.45); --r:10px;
+  --side:272px; --detail:380px;
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#f3f4f7; --bg2:#eceef2; --panel:#ffffff; --panel2:#f7f8fa; --hover:#eef1f5; --line:#e1e4ea; --line2:#d3d8e0;
+  --text:#1c2230; --text2:#5b6474; --text3:#8b93a3;
+  --accent:#ec6a17; --accent2:#c9550d; --accent-bg:rgba(236,106,23,.10);
+  --green:#17a26a; --green-bg:rgba(23,162,106,.10); --red:#d94848; --red-bg:rgba(217,72,72,.10);
+  --blue:#2f6fdb; --blue-bg:rgba(47,111,219,.10); --yellow:#b7860b; --yellow-bg:rgba(183,134,11,.12);
+  --purple:#7b4fd6; --purple-bg:rgba(123,79,214,.10);
+  --shadow:0 12px 40px rgba(20,30,50,.18);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:13px/1.5 "Segoe UI","Microsoft YaHei UI","PingFang SC",sans-serif;overflow:hidden;user-select:none}
+button{font:inherit;color:inherit}
+svg.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:10px;border:3px solid transparent;background-clip:content-box}::-webkit-scrollbar-track{background:transparent}
+
+.app{display:grid;grid-template-columns:var(--side) 1fr var(--detail);height:100vh}
+.app.nodetail{grid-template-columns:var(--side) 1fr 0}
+
+/* ---------- 侧栏 */
+.side{background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.brand{display:flex;align-items:center;gap:12px;padding:20px 18px 16px}
+.logo{width:40px;height:40px;flex:none;filter:drop-shadow(0 6px 14px rgba(255,120,40,.35))}
+.brand b{display:block;font-size:15px;letter-spacing:.2px}
+.brand small{color:var(--text3);font-size:11.5px}
+.side-h{display:flex;align-items:center;justify-content:space-between;padding:10px 18px 6px;color:var(--text3);font-size:11.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase}
+.side-h .n{background:var(--panel2);border-radius:20px;padding:0 8px;color:var(--text2);font-weight:600}
+.inst-list{flex:1;overflow:auto;padding:4px 10px 10px}
+.inst{position:relative;padding:11px 12px 11px 14px;border-radius:var(--r);cursor:pointer;margin-bottom:6px;border:1px solid transparent;transition:background .12s}
+.inst:hover{background:var(--hover)}
+.inst.on{background:var(--panel);border-color:var(--line2);box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.inst.on::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:3px;background:var(--accent)}
+.inst .v{display:flex;align-items:baseline;gap:8px}
+.inst .v b{font-size:15px}
+.inst .v span{color:var(--text3);font-size:11.5px}
+.inst .p{color:var(--text2);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0 7px;direction:rtl;text-align:left}
+.inst .c{display:flex;gap:6px;flex-wrap:wrap}
+.inst .x{position:absolute;right:8px;top:8px;opacity:0;border:0;background:transparent;color:var(--text3);border-radius:6px;padding:3px;cursor:pointer}
+.inst:hover .x{opacity:1}.inst .x:hover{background:var(--red-bg);color:var(--red)}
+.dropzone{margin:6px 12px 10px;border:1.5px dashed var(--line2);border-radius:12px;padding:14px;text-align:center;color:var(--text2);font-size:12px;line-height:1.6}
+.dropzone svg{width:22px;height:22px;color:var(--accent);margin-bottom:4px}
+.dropzone b{color:var(--text)}
+.side-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 12px 12px}
+.side-foot{border-top:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:8px;color:var(--text3);font-size:11.5px}
+.side-foot .sp{flex:1}
+
+/* ---------- 通用 */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:32px;padding:0 13px;border-radius:8px;border:1px solid var(--line2);background:var(--panel);cursor:pointer;white-space:nowrap;transition:background .12s,border-color .12s,transform .05s}
+.btn:hover{background:var(--hover);border-color:var(--text3)}
+.btn:active{transform:translateY(1px)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--red)}.btn.danger:hover{background:var(--red-bg);border-color:var(--red)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--text2)}.btn.ghost:hover{background:var(--hover);color:var(--text)}
+.btn.sm{height:27px;padding:0 9px;font-size:12px;border-radius:7px}
+.btn.icon{width:32px;padding:0}
+.btn:disabled{opacity:.45;pointer-events:none}
+.chip{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:6px;font-size:11px;font-weight:600;background:var(--panel2);color:var(--text2);white-space:nowrap}
+.chip.g{background:var(--green-bg);color:var(--green)}.chip.r{background:var(--red-bg);color:var(--red)}
+.chip.b{background:var(--blue-bg);color:var(--blue)}.chip.y{background:var(--yellow-bg);color:var(--yellow)}
+.chip.o{background:var(--accent-bg);color:var(--accent)}.chip.p{background:var(--purple-bg);color:var(--purple)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block}
+.muted{color:var(--text3)}
+kbd{font:11px Consolas,monospace;background:var(--panel2);border:1px solid var(--line2);border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--text2)}
+
+/* ---------- 主区 */
+.main{display:flex;flex-direction:column;min-width:0;min-height:0;container:main/inline-size}
+@container main (max-width:1080px){.head .acts .btn:not(.pri) .lb{display:none}.head .acts .btn:not(.pri){width:34px;padding:0}.stats{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.stat{padding:11px 12px}.stat .val{font-size:20px}.loc .pp{max-width:340px}}
+@container main (max-width:860px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}.head{flex-wrap:wrap}}
+.head{padding:20px 26px 0;display:flex;gap:18px;align-items:flex-start}
+.head .t{flex:1;min-width:0}
+.head h1{margin:0;font-size:22px;font-weight:700;display:flex;align-items:center;gap:10px;letter-spacing:.2px;white-space:nowrap}
+.head .path{display:flex;align-items:center;gap:6px;color:var(--text2);margin-top:5px;font-size:12.5px;min-width:0}
+.head .path a{color:var(--text2);text-decoration:none;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.head .path a:hover{color:var(--accent)}
+.head .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.run{display:none;align-items:center;gap:7px;margin:14px 26px 0;padding:9px 14px;border-radius:9px;background:var(--yellow-bg);color:var(--yellow);font-size:12.5px}
+.run.on{display:flex}
+.run .pulse{width:8px;height:8px;border-radius:50%;background:var(--yellow);box-shadow:0 0 0 0 var(--yellow);animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(245,196,81,.6)}70%{box-shadow:0 0 0 8px rgba(245,196,81,0)}100%{box-shadow:0 0 0 0 rgba(245,196,81,0)}}
+
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;padding:16px 26px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px;cursor:pointer;transition:border-color .12s,transform .12s;position:relative;overflow:hidden}
+.stat:hover{border-color:var(--line2);transform:translateY(-1px)}
+.stat.sel{border-color:var(--accent)}
+.stat .k{display:flex;align-items:center;gap:7px;color:var(--text2);font-size:12px;white-space:nowrap;overflow:hidden}
+.stat .k .ic{width:24px;height:24px;border-radius:7px;display:grid;place-items:center}
+.stat .val{font-size:24px;font-weight:700;margin-top:6px;letter-spacing:.3px}
+.stat .sub{color:var(--text3);font-size:11.5px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat .bar{position:absolute;left:0;bottom:0;height:3px;background:var(--accent);opacity:.7}
+
+.locs{display:flex;gap:8px;padding:12px 26px 0;flex-wrap:wrap}
+.loc{display:flex;align-items:center;gap:8px;max-width:100%;padding:6px 10px;border-radius:8px;background:var(--panel);border:1px solid var(--line);font-size:12px;color:var(--text2);cursor:pointer}
+.loc:hover{border-color:var(--line2);color:var(--text)}
+.loc b{color:var(--text);font-weight:600}
+.loc .pp{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px}
+.loc.off{opacity:.55}
+
+.tools{display:flex;align-items:center;gap:8px;padding:14px 26px 10px;flex-wrap:wrap}
+.search{display:flex;align-items:center;gap:8px;height:34px;padding:0 11px;border-radius:9px;background:var(--panel);border:1px solid var(--line2);flex:1 1 180px;max-width:340px;min-width:150px;color:var(--text3)}
+.search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+.search input{flex:1;border:0;background:transparent;outline:0;color:var(--text);font:inherit;min-width:0}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line2);border-radius:9px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;height:26px;padding:0 11px;border-radius:6px;color:var(--text2);cursor:pointer;font-size:12.5px;display:flex;align-items:center;gap:6px}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--hover);color:var(--text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.seg button .n{font-size:11px;color:var(--text3);font-weight:500}
+.tools .sp{flex:1}
+select.sel{height:34px;border-radius:9px;background:var(--panel);border:1px solid var(--line2);color:var(--text);padding:0 10px;font:inherit;outline:0;cursor:pointer}
+
+.bulk{display:none;align-items:center;gap:10px;margin:0 26px 8px;padding:8px 10px 8px 14px;border-radius:10px;background:var(--accent-bg);border:1px solid rgba(255,138,61,.35)}
+.bulk.on{display:flex}
+.bulk b{color:var(--accent)}
+.bulk .sp{flex:1}
+
+/* ---------- 列表 */
+.list-wrap{flex:1;min-height:0;margin:0 26px 20px;background:var(--panel);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.list-wrap{container-type:inline-size}
+.lh,.row{display:grid;grid-template-columns:28px minmax(180px,2.4fr) 120px minmax(110px,1.4fr) 84px 96px 50px;align-items:center;gap:10px;padding:0 14px}
+@container (max-width:860px){.lh,.row{grid-template-columns:28px minmax(170px,2.4fr) 110px minmax(90px,1.2fr) 80px 50px}.lh .col-date,.row .col-date{display:none}}
+@container (max-width:640px){.lh,.row{grid-template-columns:28px minmax(150px,1fr) 100px 76px 50px}.lh .col-data,.row .col-data{display:none}}
+.lh{height:38px;border-bottom:1px solid var(--line);color:var(--text3);font-size:11.5px;font-weight:600;letter-spacing:.3px;background:var(--panel2)}
+.lh span{cursor:pointer;display:flex;align-items:center;gap:4px}
+.lh span:hover{color:var(--text)}
+.lh span.on{color:var(--accent)}
+.rows{flex:1;overflow:auto}
+.row{height:58px;border-bottom:1px solid var(--line);cursor:pointer;position:relative;transition:background .08s}
+.row:hover{background:var(--hover)}
+.row.sel{background:var(--accent-bg)}
+.row.focus::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:var(--accent)}
+.row.off .nm,.row.off .av{opacity:.45}
+.row.off .nm b{text-decoration:line-through;text-decoration-color:var(--text3)}
+.cb{width:17px;height:17px;border-radius:5px;border:1.5px solid var(--line2);display:grid;place-items:center;cursor:pointer;background:var(--bg2)}
+.cb.on{background:var(--accent);border-color:var(--accent)}
+.cb.on::after{content:"";width:8px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+.cb.part{background:var(--accent);border-color:var(--accent)}.cb.part::after{content:"";width:8px;height:2px;background:#fff}
+.nm{display:flex;align-items:center;gap:12px;min-width:0}
+.av{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:700;font-size:14px;flex:none;color:#fff;letter-spacing:-.3px}
+.nm .tx{min-width:0}
+.nm b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nm small{display:block;color:var(--text3);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tags{display:flex;gap:5px;flex-wrap:wrap}
+.cell{color:var(--text2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell.r{text-align:right}
+.sw{width:38px;height:22px;border-radius:22px;background:var(--line2);position:relative;cursor:pointer;transition:background .15s;flex:none}
+.sw::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.sw.on{background:var(--green)}.sw.on::after{left:19px}
+.sw.lg{width:46px;height:26px}.sw.lg::after{width:20px;height:20px}.sw.lg.on::after{left:23px}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;padding:40px;color:var(--text2)}
+.empty .big{width:72px;height:72px;border-radius:20px;background:var(--accent-bg);color:var(--accent);display:grid;place-items:center;margin-bottom:16px}
+.empty .big svg{width:34px;height:34px}
+.empty h3{margin:0 0 6px;color:var(--text);font-size:17px}
+.empty p{margin:0 0 18px;max-width:440px;line-height:1.7}
+.empty .row2{display:flex;gap:10px}
+
+/* ---------- 详情 */
+.detail{background:var(--bg2);border-left:1px solid var(--line);overflow:auto;min-width:0}
+.app.nodetail .detail{display:none}
+.dt-h{padding:22px 22px 16px;border-bottom:1px solid var(--line)}
+.dt-h .top{display:flex;align-items:center;gap:14px}
+.dt-h .av{width:54px;height:54px;border-radius:15px;font-size:20px}
+.dt-h h2{margin:0;font-size:18px;word-break:break-all}
+.dt-h .fn{color:var(--text3);font-size:12px;word-break:break-all}
+.dt-h .tags{margin-top:12px}
+.dt-close{margin-left:auto;align-self:flex-start}
+.state-card{margin:16px 22px 0;padding:14px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.state-card .tx{flex:1}
+.state-card b{display:block;font-size:14px}
+.state-card small{color:var(--text3);font-size:11.5px}
+.sec{padding:16px 22px 4px}
+.sec h4{margin:0 0 10px;font-size:11.5px;color:var(--text3);font-weight:600;letter-spacing:.6px;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between}
+.kv{display:grid;grid-template-columns:86px 1fr;gap:7px 10px;font-size:12.5px}
+.kv dt{color:var(--text3)}
+.kv dd{margin:0;color:var(--text);word-break:break-all}
+.files{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.file{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);font-size:12.5px}
+.file:last-child{border-bottom:0}
+.file .ext{width:34px;height:22px;border-radius:5px;display:grid;place-items:center;font-size:10px;font-weight:700;background:var(--blue-bg);color:var(--blue);text-transform:uppercase;flex:none}
+.file .ext.dir{background:var(--yellow-bg);color:var(--yellow)}
+.file .ext.py{background:var(--purple-bg);color:var(--purple)}
+.file .ext.txt{background:var(--panel2);color:var(--text2)}
+.file .fnm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file .fs{color:var(--text3);font-size:11.5px}
+.entries{display:flex;flex-wrap:wrap;gap:5px;padding:10px 12px;border-top:1px solid var(--line)}
+.entries span{font-size:11px;padding:2px 7px;border-radius:5px;background:var(--panel2);color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+pre.notes{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;font:12px/1.6 Consolas,"Microsoft YaHei UI",monospace;color:var(--text2);white-space:pre-wrap;word-break:break-word;max-height:220px;overflow:auto;user-select:text}
+.dt-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:16px 22px 24px}
+.dt-acts .btn{width:100%}
+.dt-empty{padding:28px 24px;color:var(--text2)}
+.dt-empty h3{color:var(--text);margin:0 0 4px;font-size:15px}
+.tip{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:12.5px;line-height:1.6}
+.tip:last-child{border-bottom:0}
+.tip .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none}
+.tip b{color:var(--text)}
+.tip div>b:first-child{display:block}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;font-size:12px;margin-top:6px;align-items:center}
+
+/* ---------- 弹窗 / 提示 / 拖拽 */
+.mask{position:fixed;inset:0;background:rgba(5,7,10,.62);display:none;align-items:center;justify-content:center;z-index:50;backdrop-filter:blur(3px)}
+.mask.on{display:flex;animation:fade .15s}
+.modal{width:min(560px,92vw);max-height:86vh;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line2);border-radius:16px;box-shadow:var(--shadow);animation:pop .18s}
+.modal .mh{display:flex;align-items:center;gap:12px;padding:20px 22px 6px}
+.modal .mh .ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none}
+.modal .mh h3{margin:0;font-size:16px}
+.modal .mb{padding:10px 22px 6px;overflow:auto;color:var(--text2);line-height:1.7;user-select:text}
+.modal .mf{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px 20px}
+.mlist{background:var(--bg2);border:1px solid var(--line);border-radius:10px;margin:10px 0;max-height:280px;overflow:auto}
+.mlist div{display:flex;align-items:center;gap:9px;padding:7px 12px;border-bottom:1px solid var(--line);color:var(--text);font-size:12.5px}
+.mlist div:last-child{border-bottom:0}
+.mlist div span.f{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.check{display:flex;align-items:center;gap:9px;cursor:pointer;margin-top:8px;color:var(--text)}
+code.p{font:12px Consolas,monospace;background:var(--bg2);border:1px solid var(--line);padding:2px 6px;border-radius:5px;color:var(--text);word-break:break-all}
+@keyframes fade{from{opacity:0}}@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}}
+.toasts{position:fixed;right:22px;bottom:22px;display:flex;flex-direction:column;gap:8px;z-index:60}
+.toast{display:flex;align-items:center;gap:10px;min-width:260px;max-width:440px;padding:11px 14px;border-radius:11px;background:var(--panel);border:1px solid var(--line2);box-shadow:var(--shadow);font-size:12.5px;animation:pop .2s}
+.toast .ic{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;flex:none}
+.drop{position:fixed;inset:0;z-index:70;display:none;padding:18px;background:rgba(10,12,16,.7);backdrop-filter:blur(2px)}
+.drop.on{display:block}
+.drop .in{height:100%;border:2.5px dashed var(--accent);border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--accent-bg);color:var(--text)}
+.drop .in svg{width:56px;height:56px;color:var(--accent)}
+.drop h2{margin:0;font-size:22px}
+.drop p{margin:0;color:var(--text2);font-size:14px}
+.drop .cols{display:flex;gap:14px;margin-top:10px}
+.drop .cols div{background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:12px 18px;font-size:13px;color:var(--text2)}
+.drop .cols b{color:var(--text);display:block;margin-bottom:2px}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid var(--line2);border-top-color:var(--accent);animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+@media (max-width:1500px){ :root{--detail:340px;--side:250px} .stats{gap:10px} .stat .val{font-size:22px} }
+@media (max-width:1220px){
+  .app,.app.nodetail{grid-template-columns:var(--side) 1fr}
+  .detail{position:fixed;right:0;top:0;bottom:0;width:380px;z-index:40;box-shadow:var(--shadow);transform:translateX(100%);transition:transform .2s}
+  .app.showdetail .detail{transform:none}
+  .stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+</style>
+</head>
+<body>
+<div class="app nodetail" id="app">
+  <aside class="side">
+    <div class="brand"><img class="logo" src="logo.png" alt=""><div><b>ZBrush 插件管理器</b><small id="appver">Plugin Manager</small></div></div>
+    <div class="side-h"><span>ZBrush 版本</span><span class="n" id="instN">0</span></div>
+    <div class="inst-list" id="instList"></div>
+    <div class="dropzone"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><br>
+      把 <b>ZBrush 文件夹</b>、<b>ZBrush.exe</b><br>或<b>桌面快捷方式</b>拖到窗口任意位置</div>
+    <div class="side-actions">
+      <button class="btn sm" onclick="browseInstall()"><svg class="i" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>浏览添加</button>
+      <button class="btn sm" id="discBtn" onclick="discover(true)"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>自动搜索</button>
+    </div>
+    <div class="side-foot">
+      <span id="adminTag"></span><span class="sp"></span>
+      <button class="btn ghost sm icon" title="切换深色 / 浅色" onclick="toggleTheme()"><svg class="i" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+      <button class="btn ghost sm icon" title="快捷键" onclick="showKeys()"><svg class="i" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></button>
+    </div>
+  </aside>
+
+  <main class="main" id="main"></main>
+  <aside class="detail" id="detail"></aside>
+</div>
+
+<div class="mask" id="mask"><div class="modal" id="modal"></div></div>
+<div class="toasts" id="toasts"></div>
+<div class="drop" id="drop"><div class="in">
+  <svg class="i" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+  <h2>松开鼠标</h2><p>程序会自动识别你拖进来的是 ZBrush 还是插件</p>
+  <div class="cols"><div><b>添加 ZBrush</b>文件夹 · ZBrush.exe · 快捷方式</div><div><b>安装插件</b>.zsc · .py · .zip · 插件文件夹</div></div>
+</div></div>
+
+<script>
+/* ================= 图标 ================= */
+const P = {
+  plug:'<path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  pause:'<circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/>',
+  box:'<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>',
+  disk:'<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  refresh:'<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/>',
+  play:'<path d="M7 4v16l13-8z"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  warn:'<path d="M12 3 2 21h20z"/><path d="M12 10v4M12 17.5v.01"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/>',
+  ok:'<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
+  copy:'<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+  shield:'<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/>',
+  up:'<path d="m6 15 6-6 6 6"/>', down:'<path d="m6 9 6 6 6-6"/>',
+  file:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+  drop:'<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  panel:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>',
+};
+const ic = (n, s) => `<svg class="i" viewBox="0 0 24 24"${s?` style="width:${s}px;height:${s}px"`:''}>${P[n]||''}</svg>`;
+
+/* ================= 工具 ================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtSize = n => { if(!n) return '0 B'; const u=['B','KB','MB','GB']; let i=0; while(n>=1024&&i<3){n/=1024;i++} return (i?n.toFixed(n<10?2:1):n)+' '+u[i]; };
+const fmtDate = t => { if(!t) return ''; const d=new Date(t*1000), p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+const ago = t => { if(!t) return ''; const s=Date.now()/1000-t; if(s<3600) return Math.max(1,Math.round(s/60))+' 分钟前'; if(s<86400) return Math.round(s/3600)+' 小时前'; if(s<86400*30) return Math.round(s/86400)+' 天前'; if(s<86400*365) return Math.round(s/86400/30)+' 个月前'; return (s/86400/365).toFixed(1)+' 年前'; };
+const hue = s => { let h=0; for(const c of s) h=(h*31+c.charCodeAt(0))>>>0; return h%360; };
+const avatar = p => { const h=hue(p.display); const t=p.display.replace(/[^A-Za-z0-9\u4e00-\u9fa5]/g,''); const ini=(t.match(/[A-Z0-9]/g)||[]).slice(0,2).join('')||t.slice(0,2); return `<div class="av" style="background:linear-gradient(140deg,hsl(${h} 62% 56%),hsl(${(h+35)%360} 58% 42%))">${esc(ini.slice(0,2).toUpperCase()||'?')}</div>`; };
+const api = (name, ...a) => window.pywebview.api[name](...a);
+
+/* ================= 状态 ================= */
+const S = {
+  installs:[], current:null, data:null, admin:false, running:false,
+  q:'', status:'all', src:'all', sort:'src', dir:1, sel:new Set(), focus:null, detail:null, loading:false,
+  theme:'dark', showDetail:true,
+};
+let saveTimer;
+function saveUi(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>api('save_ui',{sort:S.sort,dir:S.dir,status:S.status,src:S.src,theme:S.theme,showDetail:S.showDetail}),400); }
+
+/* ================= 数据 ================= */
+async function loadState(){
+  const st = await api('get_state');
+  S.installs = st.installs; S.current = st.current; S.admin = st.admin;
+  $('#appver').textContent = 'v' + st.version + ' · 支持所有 ZBrush 版本';
+  $('#adminTag').innerHTML = S.admin ? `<span class="chip g">${ic('shield',12)}管理员</span>` : `<span class="muted">普通权限</span>`;
+  renderSide();
+  return st;
+}
+async function scan(keepSel){
+  if(!S.current){ S.data=null; renderMain(); renderDetail(); return; }
+  S.loading = true; if(!S.data) renderMain();
+  S.data = await api('scan');
+  S.loading = false;
+  const ids = new Set((S.data.plugins||[]).map(p=>p.id));
+  S.sel = keepSel ? new Set([...S.sel].filter(i=>ids.has(i))) : new Set();
+  if(S.focus && !ids.has(S.focus)) S.focus = null;
+  renderMain(); await loadDetail();
+  // 同步侧栏计数
+  const inst = S.installs.find(i=>i.root===S.current);
+  if(inst && S.data.plugins){ inst.enabled=S.data.plugins.filter(p=>p.enabled).length; inst.disabled=S.data.plugins.length-inst.enabled; inst.third=S.data.plugins.filter(p=>!p.official).length; renderSide(); }
+}
+async function selectInstall(root){
+  if(root===S.current) return;
+  S.current = root; S.data=null; S.focus=null; S.sel.clear(); S.q='';
+  renderSide(); renderMain(); renderDetail();
+  await api('select_install', root); await scan();
+}
+
+/* ================= 侧栏 ================= */
+function renderSide(){
+  $('#instN').textContent = S.installs.length;
+  const el = $('#instList');
+  if(!S.installs.length){ el.innerHTML = `<div class="muted" style="padding:14px 8px;font-size:12px;line-height:1.7">还没有添加 ZBrush。<br>拖入 ZBrush 文件夹或快捷方式，或点击下方「自动搜索」。</div>`; return; }
+  el.innerHTML = S.installs.map(i=>`
+    <div class="inst ${i.root===S.current?'on':''}" onclick='selectInstall(${JSON.stringify(i.root)})' title="${esc(i.root)}">
+      <button class="x" title="从列表移除（不会删除任何文件）" onclick='event.stopPropagation();removeInstall(${JSON.stringify(i.root)})'>${ic('x',14)}</button>
+      <div class="v"><b>ZBrush ${esc(i.version)}</b></div>
+      <div class="p">&lrm;${esc(i.root)}&lrm;</div>
+      <div class="c">${i.exists?`<span class="chip g">${i.enabled} 启用</span>${i.disabled?`<span class="chip">${i.disabled} 禁用</span>`:''}${i.third?`<span class="chip b">${i.third} 第三方</span>`:''}`:`<span class="chip r">目录不存在</span>`}</div>
+    </div>`).join('');
+}
+async function removeInstall(root){
+  const ok = await modal({icon:'info', tone:'b', title:'从列表移除？', body:`只会把它从左侧列表里去掉，<b>不会删除</b>任何文件。<br><code class="p">${esc(root)}</code>`, buttons:[['取消'],['移除','pri',true]]});
+  if(!ok) return;
+  const st = await api('remove_install', root); S.installs=st.installs; S.current=st.current; S.data=null; renderSide(); await scan();
+}
+async function browseInstall(){
+  const r = await api('browse_install');
+  if(r.cancel) return;
+  if(!r.added.length) return toast('warn','这个目录里没有找到 ZBrush（需要包含 ZBrush.exe 和 ZStartup）','r');
+  await afterAdd(r.added);
+}
+async function afterAdd(added){
+  await loadState(); S.data=null; S.focus=null; await scan();
+  toast('ok', added.length>1 ? `找到 ${added.length} 个 ZBrush，已全部添加` : `已添加 ZBrush：${added[0]}`, 'g');
+}
+async function discover(manual){
+  const b=$('#discBtn'); b.disabled=true; b.innerHTML='<span class="spin"></span>搜索中…';
+  try{
+    const r = await api('discover');
+    await loadState();
+    if(!S.data && S.current) await scan();
+    if(manual || r.new.length) toast(r.new.length?'ok':'info', `自动搜索完成：发现 ${r.found} 个 ZBrush，新增 ${r.new.length} 个`, r.new.length?'g':'b');
+  } finally { b.disabled=false; b.innerHTML=`${ic('search')}自动搜索`; }
+}
+
+/* ================= 主区 ================= */
+function filtered(){
+  const ps = S.data?.plugins || [];
+  const q = S.q.trim().toLowerCase();
+  let r = ps.filter(p=>{
+    if(q && !(p.name.toLowerCase().includes(q) || p.data.toLowerCase().includes(q) || p.files.join(' ').toLowerCase().includes(q))) return false;
+    if(S.status==='on' && !p.enabled) return false;
+    if(S.status==='off' && p.enabled) return false;
+    if(S.src==='third' && p.official) return false;
+    if(S.src==='official' && !p.official) return false;
+    if(S.src==='py' && p.kind!=='Python') return false;
+    if(S.src==='mismatch' && !p.mismatch) return false;
+    return true;
+  });
+  const k = {
+    name:p=>p.display.toLowerCase(), src:p=>(p.official?1:0)+p.display.toLowerCase(),
+    status:p=>(p.enabled?0:1)+p.display.toLowerCase(), size:p=>p.size+p.data_size, mtime:p=>p.mtime,
+    data:p=>(p.data||'~').toLowerCase(), kind:p=>p.kind+p.display.toLowerCase(),
+  }[S.sort] || (p=>p.name);
+  r.sort((a,b)=>{ const x=k(a), y=k(b); return (x>y?1:x<y?-1:0)*S.dir; });
+  return r;
+}
+
+function renderMain(){
+  const m = $('#main');
+  if(!S.installs.length || !S.current){
+    m.innerHTML = `<div class="empty">
+      <div class="big">${ic('drop')}</div>
+      <h3>先告诉我 ZBrush 在哪里</h3>
+      <p>把 <b>ZBrush 安装文件夹</b>、<b>ZBrush.exe</b> 或者<b>桌面上的 ZBrush 快捷方式</b>直接拖进这个窗口，程序会自动找到它的插件库。任何版本都可以，也可以一次拖入一个包含多个 ZBrush 的上级文件夹。</p>
+      <div class="row2"><button class="btn pri" onclick="browseInstall()">${ic('folder')}选择 ZBrush 文件夹</button><button class="btn" onclick="discover(true)">${ic('refresh')}自动搜索本机</button></div></div>`;
+    return;
+  }
+  const d = S.data, inst = d?.install, ps = d?.plugins || [];
+  const info = S.installs.find(i=>i.root===S.current) || {};
+  const en = ps.filter(p=>p.enabled).length, third = ps.filter(p=>!p.official).length;
+  const py = ps.filter(p=>p.kind==='Python').length, mism = ps.filter(p=>p.mismatch).length;
+  const tsize = ps.reduce((a,p)=>a+p.size+p.data_size,0);
+  const thirdSize = ps.filter(p=>!p.official).reduce((a,p)=>a+p.size+p.data_size,0);
+  const cnt = {all:ps.length, on:en, off:ps.length-en};
+  const stat = (key, title, val, sub, icn, col, act, pct) => `
+    <div class="stat ${act?'sel':''}" onclick="${key}">
+      <div class="k"><span class="ic" style="background:var(--${col}-bg);color:var(--${col})">${ic(icn,14)}</span>${title}</div>
+      <div class="val">${val}</div><div class="sub">${sub}</div>${pct!=null?`<div class="bar" style="width:${pct}%;background:var(--${col})"></div>`:''}
+    </div>`;
+  m.innerHTML = `
+    <div class="head">
+      <div class="t">
+        <h1>ZBrush ${esc(inst?.version || info.version || '')} ${inst?.year?`<span class="chip o">${inst.year}</span>`:''}</h1>
+        <div class="path">${ic('folder',14)}<a onclick='api("open_path",${JSON.stringify(S.current)})' title="在资源管理器中打开">${esc(S.current)}</a>
+          <button class="btn ghost sm icon" title="复制路径" onclick='copy(${JSON.stringify(S.current)})'>${ic('copy',14)}</button></div>
+      </div>
+      <div class="acts">
+        <button class="btn" onclick="refresh()" title="刷新 (F5)">${ic('refresh')}<span class="lb">刷新</span></button>
+        <button class="btn" onclick="openPlugDir()" title="打开插件目录">${ic('folder')}<span class="lb">插件目录</span></button>
+        <button class="btn" onclick="launch()" title="启动 ZBrush">${ic('play')}<span class="lb">启动 ZBrush</span></button>
+        <button class="btn pri" onclick="pickInstall()">${ic('plus')}安装插件</button>
+      </div>
+    </div>
+    <div class="run ${S.running?'on':''}" id="runBar"><span class="pulse"></span><b>ZBrush 正在运行</b><span>— 启用、禁用、安装的改动要在重启 ZBrush 后才生效；运行中删除插件可能失败。</span></div>
+    <div class="stats">
+      ${stat("setFilter('all','all')",'插件总数',ps.length,`ZScript ${ps.length-py} · Python ${py}`,'box','blue',S.status==='all'&&S.src==='all')}
+      ${stat("setFilter('on')",'已启用',en,'ZBrush 启动时加载','check','green',S.status==='on',ps.length?en/ps.length*100:0)}
+      ${stat("setFilter('off')",'已禁用',ps.length-en,'可随时恢复','pause','red',S.status==='off',ps.length?(ps.length-en)/ps.length*100:0)}
+      ${stat("setFilter(null,'third')",'第三方',third,`占用 ${fmtSize(thirdSize)}`,'plug','purple',S.src==='third')}
+      ${mism ? stat("setFilter(null,'mismatch')",'版本不匹配',mism,`插件标注的版本不是 ${inst?.year}`,'warn','yellow',S.src==='mismatch')
+             : stat("setSort('size')",'占用空间',fmtSize(tsize),'插件 + 数据文件夹','disk','yellow',false)}
+    </div>
+    <div class="locs">${(d?.locations||[]).map(l=>`
+      <div class="loc ${l.exists?'':'off'}" title="${l.exists?'点击打开':'该目录不存在'}：${esc(l.path)}" onclick='api("open_path",${JSON.stringify(l.path)})'>
+        ${ic('folder',14)}<b>${esc(l.label)}</b><span class="pp">${esc(l.path)}</span><span class="chip ${l.count?'o':''}">${l.exists?l.count+' 个':'不存在'}</span>
+      </div>`).join('')}</div>
+    <div class="tools">
+      <div class="search">${ic('search')}<input id="q" placeholder="搜索插件 (Ctrl+F)" value="${esc(S.q)}"></div>
+      <div class="seg">${[['all','全部'],['on','已启用'],['off','已禁用']].map(([k,t])=>`<button class="${S.status===k?'on':''}" onclick="setFilter('${k}')">${t}<span class="n">${cnt[k]}</span></button>`).join('')}</div>
+      <div class="seg">${[['all','全部来源'],['third','第三方'],['official','官方'],['py','Python']].map(([k,t])=>`<button class="${S.src===k?'on':''}" onclick="setFilter(null,'${k}')">${t}</button>`).join('')}</div>
+      <span class="sp"></span>
+      <button class="btn ghost icon" title="显示 / 隐藏详情面板" onclick="toggleDetail()">${ic('panel')}</button>
+    </div>
+    <div class="bulk" id="bulk"></div>
+    <div class="list-wrap">
+      <div class="lh" id="lh"></div>
+      <div class="rows" id="rows"></div>
+    </div>`;
+  const q = $('#q'); q.oninput = e => { S.q = e.target.value; renderRows(); };
+  renderRows();
+}
+
+function renderRows(){
+  const rows = $('#rows'); if(!rows) return;
+  const list = filtered();
+  const allSel = list.length && list.every(p=>S.sel.has(p.id)), someSel = list.some(p=>S.sel.has(p.id));
+  const H = (k,t,cls='') => `<span class="${S.sort===k?'on':''} ${cls}" onclick="setSort('${k}')">${t}${S.sort===k?ic(S.dir>0?'up':'down',12):''}</span>`;
+  $('#lh').innerHTML = `<div class="cb ${allSel?'on':someSel?'part':''}" onclick="selAll()"></div>${H('name','插件')}${H('src','来源 / 类型')}${H('data','数据文件夹','col-data')}${H('size','大小','r')}${H('mtime','更新时间','col-date')}${H('status','状态')}`;
+  if(S.loading && !S.data){ rows.innerHTML = `<div class="empty"><div class="spin" style="width:28px;height:28px"></div><p style="margin-top:14px">正在扫描插件…</p></div>`; return; }
+  if(!list.length){
+    rows.innerHTML = (S.data?.plugins||[]).length
+      ? `<div class="empty"><h3>没有符合条件的插件</h3><p>换个关键词或筛选条件试试。</p><button class="btn" onclick="setFilter('all','all');S.q='';renderMain()">清除筛选</button></div>`
+      : `<div class="empty"><div class="big">${ic('plug')}</div><h3>这个 ZBrush 还没有插件</h3><p>把 .zsc / .py / .zip 插件拖进窗口即可安装。</p><button class="btn pri" onclick="pickInstall()">${ic('plus')}安装插件</button></div>`;
+  } else {
+    rows.innerHTML = list.map(p=>`
+      <div class="row ${p.enabled?'':'off'} ${S.sel.has(p.id)?'sel':''} ${S.focus===p.id?'focus':''}" data-id="${esc(p.id)}">
+        <div class="cb ${S.sel.has(p.id)?'on':''}" data-act="sel"></div>
+        <div class="nm">${avatar(p)}<div class="tx"><b title="${esc(p.name)}">${esc(p.display)}</b><small>${esc(p.files.join(' · '))}</small></div></div>
+        <div class="tags">${p.official?'<span class="chip">官方</span>':'<span class="chip b">第三方</span>'}${p.kind==='Python'?'<span class="chip p">PY</span>':''}${p.mismatch?`<span class="chip y" title="文件名标注 ${p.year}，当前 ZBrush 是 ${S.data.install.year}">${p.year}</span>`:''}${p.loc!=='安装目录'?`<span class="chip o">${esc(p.loc)}</span>`:''}</div>
+        <div class="cell col-data" title="${esc(p.data)}">${p.data?`${ic('folder',13)} ${esc(p.data)}`:'<span class="muted">—</span>'}</div>
+        <div class="cell r" title="插件 ${fmtSize(p.size)} + 数据 ${fmtSize(p.data_size)}">${fmtSize(p.size+p.data_size)}</div>
+        <div class="cell col-date" title="${fmtDate(p.mtime)}">${ago(p.mtime)}</div>
+        <div><div class="sw ${p.enabled?'on':''}" data-act="toggle" title="${p.enabled?'点击禁用':'点击启用'}"></div></div>
+      </div>`).join('');
+  }
+  renderBulk();
+}
+
+function renderBulk(){
+  const b = $('#bulk'); if(!b) return;
+  const ps = (S.data?.plugins||[]).filter(p=>S.sel.has(p.id));
+  if(ps.length<1){ b.classList.remove('on'); b.innerHTML=''; return; }
+  const on = ps.filter(p=>p.enabled).length;
+  b.classList.add('on');
+  b.innerHTML = `<b>已选择 ${ps.length} 个</b><span class="muted">${on} 个启用中 · ${ps.length-on} 个已禁用</span><span class="sp"></span>
+    <button class="btn sm" ${ps.length-on?'':'disabled'} onclick="setEnabled([...S.sel],true)">${ic('check',14)}启用</button>
+    <button class="btn sm" ${on?'':'disabled'} onclick="setEnabled([...S.sel],false)">${ic('pause',14)}禁用</button>
+    <button class="btn sm danger" onclick="del([...S.sel])">${ic('trash',14)}删除</button>
+    <button class="btn sm ghost" onclick="S.sel.clear();renderRows()">取消选择</button>`;
+}
+
+/* 行点击 */
+document.addEventListener('click', e=>{
+  const row = e.target.closest('.row'); if(!row) return;
+  const id = row.dataset.id, act = e.target.closest('[data-act]')?.dataset.act;
+  if(act==='toggle'){ const p=byId(id); setEnabled([id], !p.enabled); return; }
+  if(act==='sel' || e.ctrlKey){ S.sel.has(id)?S.sel.delete(id):S.sel.add(id); S.focus=id; renderRows(); loadDetail(); return; }
+  if(e.shiftKey && S.focus){
+    const ids = filtered().map(p=>p.id); const a=ids.indexOf(S.focus), b=ids.indexOf(id);
+    ids.slice(Math.min(a,b), Math.max(a,b)+1).forEach(i=>S.sel.add(i)); renderRows(); return;
+  }
+  S.focus = id; renderRows(); loadDetail();
+  if(innerWidth<=1220) $('#app').classList.add('showdetail');
+});
+document.addEventListener('dblclick', e=>{ const row=e.target.closest('.row'); if(row && !e.target.closest('[data-act]')){ const p=byId(row.dataset.id); setEnabled([p.id], !p.enabled); } });
+const byId = id => (S.data?.plugins||[]).find(p=>p.id===id);
+
+function setFilter(status, src){ if(status) S.status=status; if(src) S.src=src; saveUi(); renderMain(); }
+function setSort(k){ if(S.sort===k) S.dir=-S.dir; else { S.sort=k; S.dir=(k==='size'||k==='mtime')?-1:1; } saveUi(); renderRows(); }
+function selAll(){ const l=filtered(); const all=l.every(p=>S.sel.has(p.id)); l.forEach(p=>all?S.sel.delete(p.id):S.sel.add(p.id)); renderRows(); }
+
+/* ================= 详情 ================= */
+async function loadDetail(){
+  if(!S.focus){ S.detail=null; renderDetail(); return; }
+  const id = S.focus;
+  const d = await api('plugin_detail', id);
+  if(S.focus!==id) return;
+  S.detail = d; renderDetail();
+}
+function renderDetail(){
+  const el = $('#detail');
+  $('#app').classList.toggle('nodetail', !S.showDetail || !S.current);
+  const p = S.focus && byId(S.focus), d = S.detail;
+  if(!p){
+    el.innerHTML = `<div class="dt-empty"><h3>使用指南</h3><p class="muted" style="margin:0 0 8px">点击左边列表里的插件，这里会显示它的文件、数据文件夹和说明。</p>
+      <div class="tip"><span class="ic" style="background:var(--green-bg);color:var(--green)">${ic('check')}</span><div><b>启用 / 禁用</b>点开关、双击某一行或按空格。禁用只是把文件移到备用目录，<b>不会删除</b>，随时可以恢复。</div></div>
+      <div class="tip"><span class="ic" style="background:var(--accent-bg);color:var(--accent)">${ic('drop')}</span><div><b>安装插件</b>把 .zsc、.py、.zip 或插件文件夹拖进窗口。压缩包里的 ZPlugs64 结构会被自动识别。</div></div>
+      <div class="tip"><span class="ic" style="background:var(--blue-bg);color:var(--blue)">${ic('plus')}</span><div><b>多个 ZBrush</b>左侧可以添加任意多个版本，点一下就能切换。</div></div>
+      <div class="tip"><span class="ic" style="background:var(--yellow-bg);color:var(--yellow)">${ic('warn')}</span><div><b>记得重启</b>所有改动都在重启 ZBrush 后生效。</div></div>
+      <div class="tip"><span class="ic" style="background:var(--red-bg);color:var(--red)">${ic('trash')}</span><div><b>删除</b>删除的文件会进入回收站，删错了可以还原。</div></div>
+    </div>`;
+    return;
+  }
+  const inst = S.data.install;
+  const extCls = n => { const e=n.split('.').pop().toLowerCase(); return e==='py'?'py':e==='txt'?'txt':''; };
+  el.innerHTML = `
+    <div class="dt-h"><div class="top">${avatar(p)}<div style="min-width:0"><h2>${esc(p.display)}</h2><div class="fn">${esc(p.name)}</div></div>
+      <button class="btn ghost sm icon dt-close" title="关闭" onclick="S.focus=null;$('#app').classList.remove('showdetail');renderRows();loadDetail()">${ic('x',14)}</button></div>
+      <div class="tags">${p.official?'<span class="chip">ZBrush 官方插件</span>':'<span class="chip b">第三方插件</span>'}<span class="chip ${p.kind==='Python'?'p':''}">${p.kind}</span><span class="chip o">${esc(p.loc)}</span>${p.mismatch?`<span class="chip y">${ic('warn',11)}为 ${p.year} 版制作</span>`:''}</div>
+    </div>
+    <div class="state-card"><div class="tx"><b style="color:var(--${p.enabled?'green':'red'})">${p.enabled?'已启用':'已禁用'}</b><small>${p.enabled?'ZBrush 启动时会加载这个插件':'文件在备用目录中，ZBrush 不会加载'}</small></div><div class="sw lg ${p.enabled?'on':''}" onclick='setEnabled([${JSON.stringify(p.id)}],${!p.enabled})'></div></div>
+    ${p.mismatch?`<div class="run on" style="margin:12px 22px 0">${ic('warn',14)}<span>文件名标注适用于 ZBrush ${p.year}，而当前是 ${inst.year}。如果 ZBrush 启动时报错，可以先禁用它。</span></div>`:''}
+    <div class="sec"><h4>基本信息</h4><dl class="kv">
+      <dt>插件大小</dt><dd>${fmtSize(p.size)}</dd>
+      <dt>数据大小</dt><dd>${p.data?`${fmtSize(p.data_size)} <span class="muted">(${p.data_files} 个文件)</span>`:'<span class="muted">无数据文件夹</span>'}</dd>
+      <dt>更新时间</dt><dd>${fmtDate(p.mtime)} <span class="muted">· ${ago(p.mtime)}</span></dd>
+      <dt>所在目录</dt><dd><a style="color:var(--accent);cursor:pointer" onclick='api("open_path",${JSON.stringify(d?.folder||'')})'>${esc(d?.folder||'')}</a></dd>
+    </dl></div>
+    <div class="sec"><h4>文件 <span>${p.files.length}</span></h4><div class="files">${(d?.files||[]).map(f=>`
+      <div class="file"><span class="ext ${extCls(f.name)}">${esc(f.name.split('.').pop())}</span><span class="fnm" title="${esc(f.path)}">${esc(f.name)}</span><span class="fs">${fmtSize(f.size)}</span>
+      <button class="btn ghost sm icon" title="在资源管理器中显示" onclick='api("open_path",${JSON.stringify(f.path)},true)'>${ic('folder',14)}</button></div>`).join('')}</div></div>
+    ${d?.data?`<div class="sec"><h4>数据文件夹</h4><div class="files">
+      <div class="file"><span class="ext dir">DIR</span><span class="fnm" title="${esc(d.data.path)}">${esc(d.data.name)}</span><span class="fs">${fmtSize(d.data.size)} · ${d.data.files} 个文件</span>
+      <button class="btn ghost sm icon" title="打开" onclick='api("open_path",${JSON.stringify(d.data.path)})'>${ic('folder',14)}</button></div>
+      ${d.data.entries.length?`<div class="entries">${d.data.entries.map(e=>`<span title="${esc(e)}">${esc(e)}</span>`).join('')}${d.data.more?`<span>+${d.data.more}</span>`:''}</div>`:''}
+    </div></div>`:''}
+    ${d?.notes?`<div class="sec"><h4>说明</h4><pre class="notes">${esc(d.notes)}</pre></div>`:''}
+    <div class="dt-acts">
+      <button class="btn" onclick='api("open_path",${JSON.stringify((d?.files||[])[0]?.path||'')},true)'>${ic('folder')}打开位置</button>
+      <button class="btn" onclick='copy(${JSON.stringify((d?.files||[]).map(f=>f.path).join("\n"))})'>${ic('copy')}复制路径</button>
+      <button class="btn danger" style="grid-column:span 2" onclick='del([${JSON.stringify(p.id)}])'>${ic('trash')}删除插件（移入回收站）</button>
+    </div>`;
+}
+function toggleDetail(){ S.showDetail=!S.showDetail; saveUi(); renderDetail(); if(innerWidth<=1220) $('#app').classList.toggle('showdetail', S.showDetail && !!S.focus); }
+
+/* ================= 操作 ================= */
+async function refresh(){ await scan(true); toast('ok','已刷新','g'); }
+function openPlugDir(){ const l=S.data?.locations?.[0]; if(l) api('open_path', l.path); }
+async function launch(){
+  if(S.running){ const ok=await modal({icon:'warn',tone:'y',title:'ZBrush 已在运行',body:'仍然要再启动一个 ZBrush 吗？',buttons:[['取消'],['再启动一个','pri',true]]}); if(!ok) return; }
+  await api('launch_zbrush'); toast('ok','正在启动 ZBrush…','g');
+}
+async function copy(t){ await api('copy_text', t); toast('ok','已复制到剪贴板','g'); }
+
+async function setEnabled(ids, enable){
+  ids = ids.filter(id=>{ const p=byId(id); return p && p.enabled!==enable; });
+  if(!ids.length) return;
+  const r = await api('set_enabled', ids, enable);
+  await scan(true);
+  if(r.done) toast('ok', `已${enable?'启用':'禁用'} ${r.done} 个插件 · 重启 ZBrush 后生效`, enable?'g':'b');
+  if(r.errors.length) showErrors(r.errors);
+}
+async function del(ids){
+  const ps = ids.map(byId).filter(Boolean); if(!ps.length) return;
+  const off = ps.filter(p=>p.official).length, hasData = ps.some(p=>p.data);
+  const ok = await modal({icon:'trash', tone:'r', title:`删除 ${ps.length} 个插件？`,
+    body:`文件会移入<b>回收站</b>，删错了可以从回收站还原。
+      <div class="mlist">${ps.map(p=>`<div>${ic('file',14)}<span class="f">${esc(p.files.join(' · '))}</span>${p.official?'<span class="chip">官方</span>':''}</div>`).join('')}</div>
+      ${off?`<div class="run on" style="margin:0 0 6px">${ic('warn',14)}<span>其中 ${off} 个是 ZBrush 自带插件，一般建议用「禁用」代替删除。</span></div>`:''}
+      ${hasData?`<label class="check"><span class="cb" id="wd" onclick="this.classList.toggle('on')"></span>同时删除数据文件夹（插件的配置和资源）</label>`:''}`,
+    buttons:[['取消'],['删除','pri danger-pri',true]]});
+  if(!ok) return;
+  const withData = !!$('#wd')?.classList.contains('on');
+  const r = await api('delete', ids, withData);
+  ids.forEach(i=>S.sel.delete(i)); if(ids.includes(S.focus)) S.focus=null;
+  await scan(true);
+  if(r.done) toast('ok', `已将 ${r.done} 个插件移入回收站`, 'g');
+  if(r.errors.length) showErrors(r.errors);
+}
+async function showErrors(errs){
+  const e = errs[0];
+  const btns = [['知道了', e.need_admin?'':'pri', false]];
+  if(e.need_admin) btns.push(['以管理员身份重启','pri','admin']);
+  const r = await modal({icon:'warn', tone:'r', title:'有操作没有完成',
+    body:`<code class="p">${esc(e.msg)}</code>${errs.length>1?`<p>另外还有 ${errs.length-1} 项失败。</p>`:''}
+      <p>${e.running?'<b>检测到 ZBrush 正在运行</b>，文件可能被占用，请关闭 ZBrush 后再试。<br>':''}${e.need_admin?'ZBrush 装在受保护的目录（例如 C:\\Program Files）时，需要以管理员身份运行本程序。':''}</p>`, buttons:btns});
+  if(r==='admin') api('relaunch_admin');
+}
+
+/* 安装 */
+async function pickInstall(){ const fs = await api('pick_plugin_files'); if(fs.length) await installFlow(await api('preview_install', fs)); }
+async function installFlow(pv){
+  if(!pv) return;
+  if(pv.error) return modal({icon:'warn',tone:'r',title:'无法安装',body:esc(pv.error)+(pv.bad?.length?`<div class="mlist">${pv.bad.map(b=>`<div>${esc(b)}</div>`).join('')}</div>`:''),buttons:[['知道了','pri']]});
+  const ex = pv.items.filter(i=>i.exists).length;
+  const ok = await modal({icon:'plus', tone:'o', title:`安装 ${pv.items.filter(i=>i.plugin).length} 个插件`,
+    body:`将复制到：<br><code class="p">${esc(pv.target)}</code>
+      <div class="mlist">${pv.items.map(i=>`<div>${ic(i.dir?'folder':'file',14)}<span class="f">${esc(i.name)}</span>${i.plugin?'<span class="chip b">插件</span>':i.dir?'<span class="chip y">数据</span>':''}${i.exists?'<span class="chip r">覆盖</span>':'<span class="chip g">新增</span>'}</div>`).join('')}</div>
+      ${ex?`<div class="muted">有 ${ex} 项已存在，旧文件会先移入回收站。</div>`:''}
+      ${pv.bad?.length?`<div style="color:var(--red)">无法读取：${esc(pv.bad.join('，'))}</div>`:''}`,
+    buttons:[['取消'],['安装','pri',true]]});
+  if(!ok){ api('cancel_install', pv.token); return; }
+  const r = await api('do_install', pv.token);
+  await scan(true);
+  if(r.done) toast('ok', `安装完成（${r.done} 项）· 重启 ZBrush 后生效`, 'g');
+  if(r.errors.length) showErrors(r.errors);
+}
+
+/* 拖拽：Python 端拿到完整路径后回调这里 */
+let dragN = 0;
+document.addEventListener('dragenter', e=>{ if(e.dataTransfer?.types?.includes('Files')){ dragN++; $('#drop').classList.add('on'); } });
+document.addEventListener('dragleave', ()=>{ if(--dragN<=0){ dragN=0; $('#drop').classList.remove('on'); } });
+document.addEventListener('dragover', e=>e.preventDefault());
+document.addEventListener('drop', e=>{ e.preventDefault(); dragN=0; $('#drop').classList.remove('on'); });
+window.onNativeDrop = async paths => {
+  $('#drop').classList.remove('on'); dragN=0;
+  const r = await api('handle_drop', paths);
+  if(r.added.length) await afterAdd(r.added);
+  if(r.unknown.length) toast('warn', `无法识别：${r.unknown.join('，')}`, 'r');
+  if(r.need_install) toast('warn','请先添加一个 ZBrush，再拖入插件','y');
+  if(r.preview) await installFlow(r.preview);
+};
+
+/* ================= 弹窗 / 提示 ================= */
+let modalResolve;
+function modal({icon='info', tone='b', title='', body='', buttons=[['确定','pri',true]]}){
+  $('#modal').innerHTML = `<div class="mh"><span class="ic" style="background:var(--${tone==='o'?'accent':tone==='y'?'yellow':tone==='r'?'red':tone==='g'?'green':'blue'}-bg);color:var(--${tone==='o'?'accent':tone==='y'?'yellow':tone==='r'?'red':tone==='g'?'green':'blue'})">${ic(icon,18)}</span><h3>${title}</h3></div>
+    <div class="mb">${body}</div><div class="mf">${buttons.map(([t,c='',v=false],i)=>`<button class="btn ${c.includes('pri')?'pri':''}" ${c.includes('danger-pri')?'style="background:var(--red);border-color:var(--red)"':''} data-i="${i}">${t}</button>`).join('')}</div>`;
+  $('#mask').classList.add('on');
+  return new Promise(res=>{
+    modalResolve = v => { $('#mask').classList.remove('on'); modalResolve=null; res(v); };
+    $('#modal').querySelectorAll('.mf .btn').forEach(b=>b.onclick=()=>modalResolve(buttons[+b.dataset.i][2] ?? false));
+    setTimeout(()=>$('#modal').querySelector('.mf .btn.pri')?.focus(),30);
+  });
+}
+$('#mask').addEventListener('mousedown', e=>{ if(e.target.id==='mask' && modalResolve) modalResolve(false); });
+function toast(icon, text, tone='g'){
+  const t = document.createElement('div'); t.className='toast';
+  const col = {g:'green',r:'red',b:'blue',y:'yellow'}[tone]||'blue';
+  t.innerHTML = `<span class="ic" style="background:var(--${col}-bg);color:var(--${col})">${ic(icon,14)}</span><span>${esc(text)}</span>`;
+  $('#toasts').appendChild(t); setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity=0; setTimeout(()=>t.remove(),300); }, 3200);
+}
+function showKeys(){
+  modal({icon:'info',tone:'b',title:'快捷键',body:`<div class="keys">
+    <kbd>空格</kbd><span>启用 / 禁用 选中的插件</span><kbd>双击</kbd><span>启用 / 禁用</span>
+    <kbd>Ctrl</kbd>+<kbd>单击</kbd><span>多选</span><kbd>Shift</kbd>+<kbd>单击</kbd><span>连续选择</span>
+    <kbd>Ctrl</kbd>+<kbd>A</kbd><span>全选当前列表</span><kbd>Delete</kbd><span>删除（进回收站）</span>
+    <kbd>Ctrl</kbd>+<kbd>F</kbd><span>搜索</span><kbd>F5</kbd><span>刷新</span><kbd>↑</kbd> <kbd>↓</kbd><span>上下切换插件</span><kbd>Esc</kbd><span>取消选择 / 关闭弹窗</span>
+  </div>`,buttons:[['知道了','pri']]});
+}
+function toggleTheme(){ S.theme = S.theme==='dark'?'light':'dark'; document.documentElement.dataset.theme=S.theme; saveUi(); }
+
+/* ================= 键盘 ================= */
+document.addEventListener('keydown', e=>{
+  if(modalResolve){ if(e.key==='Escape') modalResolve(false); return; }
+  const inInput = e.target.tagName==='INPUT';
+  if(e.ctrlKey && e.key.toLowerCase()==='f'){ e.preventDefault(); $('#q')?.focus(); return; }
+  if(e.key==='F5'){ e.preventDefault(); refresh(); return; }
+  if(inInput){ if(e.key==='Escape'){ e.target.blur(); } return; }
+  const list = filtered();
+  if(e.ctrlKey && e.key.toLowerCase()==='a'){ e.preventDefault(); list.forEach(p=>S.sel.add(p.id)); renderRows(); return; }
+  if(e.key==='Escape'){ S.sel.clear(); renderRows(); return; }
+  const targets = S.sel.size ? [...S.sel] : (S.focus?[S.focus]:[]);
+  if(e.key===' ' && targets.length){ e.preventDefault(); const p=byId(targets[0]); setEnabled(targets, !p.enabled); return; }
+  if(e.key==='Delete' && targets.length){ del(targets); return; }
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault(); if(!list.length) return;
+    let i = list.findIndex(p=>p.id===S.focus); i = e.key==='ArrowDown'?Math.min(list.length-1,i+1):Math.max(0,i-1);
+    S.focus = list[i].id; renderRows(); loadDetail();
+    document.querySelector(`.row[data-id="${CSS.escape(S.focus)}"]`)?.scrollIntoView({block:'nearest'});
+  }
+});
+
+/* ================= 启动 ================= */
+async function pollRunning(){
+  try{ const r = await api('zbrush_running'); if(r!==S.running){ S.running=r; $('#runBar')?.classList.toggle('on', r); } }catch(e){}
+  setTimeout(pollRunning, 4000);
+}
+window.addEventListener('pywebviewready', async ()=>{
+  const st = await loadState();
+  const ui = st.ui || {};
+  Object.assign(S, {sort:ui.sort||'src', dir:ui.dir||1, status:ui.status||'all', src:ui.src||'all', theme:ui.theme||'dark', showDetail:ui.showDetail!==false});
+  document.documentElement.dataset.theme = S.theme;
+  renderMain(); renderDetail();
+  if(S.current) await scan();
+  discover(false);   // 后台自动搜索新安装的 ZBrush
+  pollRunning();
+});
+</script>
+</body>
+</html>
