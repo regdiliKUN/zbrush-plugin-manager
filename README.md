@@ -8,6 +8,8 @@
 
 ![深色主题](docs/screenshot-dark.png)
 
+> 觉得好用的话，点个 ⭐ Star 支持一下 · If you find it useful, please give it a ⭐ Star!
+
 ## 功能
 
 - **支持所有 ZBrush 版本**（2018 – 2025+），可以同时管理多个版本，在左侧一键切换
