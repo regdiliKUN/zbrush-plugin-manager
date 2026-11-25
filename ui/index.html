@@ -269,6 +269,7 @@ code.p{font:12px Consolas,monospace;background:var(--bg2);border:1px solid var(-
     <div class="side-foot">
       <span id="adminTag"></span><span class="sp"></span>
       <button class="btn ghost sm icon" title="切换深色 / 浅色" onclick="toggleTheme()"><svg class="i" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+      <button class="btn ghost sm icon" id="langBtn" title="切换语言 / Language" onclick="toggleLang()" style="font-size:11px;font-weight:700">EN</button>
       <button class="btn ghost sm icon" title="快捷键" onclick="showKeys()"><svg class="i" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></button>
     </div>
   </aside>
@@ -285,6 +286,7 @@ code.p{font:12px Consolas,monospace;background:var(--bg2);border:1px solid var(-
   <div class="cols"><div><b>添加 ZBrush</b>文件夹 · ZBrush.exe · 快捷方式</div><div><b>安装插件</b>.zsc · .py · .zip · 插件文件夹</div></div>
 </div></div>
 
+<script src="i18n.js"></script>
 <script>
 /* ================= 图标 ================= */
 const P = {
@@ -326,10 +328,15 @@ const api = (name, ...a) => window.pywebview.api[name](...a);
 const S = {
   installs:[], current:null, data:null, admin:false, running:false,
   q:'', status:'all', src:'all', sort:'src', dir:1, sel:new Set(), focus:null, detail:null, loading:false,
-  theme:'dark', showDetail:true,
+  theme:'dark', showDetail:true, lang:'zh',
 };
 let saveTimer;
-function saveUi(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>api('save_ui',{sort:S.sort,dir:S.dir,status:S.status,src:S.src,theme:S.theme,showDetail:S.showDetail}),400); }
+function saveUi(now){
+  clearTimeout(saveTimer);
+  const save = () => api('save_ui',{sort:S.sort,dir:S.dir,status:S.status,src:S.src,theme:S.theme,showDetail:S.showDetail,lang:S.lang});
+  if(now) return save();
+  saveTimer=setTimeout(save,400);
+}
 
 /* ================= 数据 ================= */
 async function loadState(){
@@ -705,6 +712,12 @@ function showKeys(){
   </div>`,buttons:[['知道了','pri']]});
 }
 function toggleTheme(){ S.theme = S.theme==='dark'?'light':'dark'; document.documentElement.dataset.theme=S.theme; saveUi(); }
+function applyLang(){ $('#langBtn').textContent = S.lang==='en' ? '中' : 'EN'; I18N.set(S.lang); }
+async function toggleLang(){
+  S.lang = S.lang==='en' ? 'zh' : 'en';
+  await saveUi(true);
+  if(S.lang==='en') applyLang(); else location.reload();   // back to Chinese: re-render from scratch
+}
 
 /* ================= 键盘 ================= */
 document.addEventListener('keydown', e=>{
@@ -735,8 +748,9 @@ async function pollRunning(){
 window.addEventListener('pywebviewready', async ()=>{
   const st = await loadState();
   const ui = st.ui || {};
-  Object.assign(S, {sort:ui.sort||'src', dir:ui.dir||1, status:ui.status||'all', src:ui.src||'all', theme:ui.theme||'dark', showDetail:ui.showDetail!==false});
+  Object.assign(S, {sort:ui.sort||'src', dir:ui.dir||1, status:ui.status||'all', src:ui.src||'all', theme:ui.theme||'dark', showDetail:ui.showDetail!==false, lang:ui.lang==='en'?'en':'zh'});
   document.documentElement.dataset.theme = S.theme;
+  applyLang();
   renderMain(); renderDetail();
   if(S.current) await scan();
   discover(false);   // 后台自动搜索新安装的 ZBrush

@@ -383,7 +383,7 @@ class Api:
 
     def pick_plugin_files(self):
         r = self._window.create_file_dialog(webview.FileDialog.OPEN, allow_multiple=True,
-                                           file_types=("ZBrush 插件 (*.zsc;*.py;*.zip)", "所有文件 (*.*)"))
+                                           file_types=("ZBrush 插件 / plugins (*.zsc;*.py;*.zip)", "所有文件 / All files (*.*)"))
         return list(r) if r else []
 
     def preview_install(self, paths):
