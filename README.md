@@ -8,6 +8,8 @@
 
 ![深色主题](docs/screenshot-dark.png)
 
+> **English:** Drop a ZBrush folder, ZBrush.exe or desktop shortcut into the window to see all its plugins, then enable, disable, install or remove them in one click. Works with ZBrush 2018–2025+, several versions at once. Click **EN** at the bottom left to switch the interface to English.
+
 > 觉得好用的话，点个 ⭐ Star 支持一下 · If you find it useful, please give it a ⭐ Star!
 
 ## 功能
@@ -19,7 +21,7 @@
 - **安装插件**：把 `.zsc`、`.py`、`.zip` 或插件文件夹拖进窗口；压缩包里的 `ZPlugs64` 结构会被自动识别，覆盖前旧文件进回收站
 - **删除进回收站**，可选择同时删除数据文件夹
 - **详情面板**：文件清单、数据文件夹内容、插件自带的说明文字
-- 批量操作、搜索、筛选、排序、快捷键，深色 / 浅色主题
+- 批量操作、搜索、筛选、排序、快捷键，深色 / 浅色主题，**中文 / English 界面**（左下角 EN / 中 按钮切换，会记住选择）
 - 窗口大小按显示器分辨率计算，并记住上次所在的显示器和位置；ZBrush 正在运行时会提醒
 
 ![浅色主题](docs/screenshot-light.png)
