@@ -37,7 +37,7 @@ from webview.dom import DOMEventHandler
 
 import zbpm_core as core
 
-APP_VER = "2.0"
+APP_VER = "2.1"
 TITLE = f"ZBrush 插件管理器"
 
 
